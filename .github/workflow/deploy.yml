@@ -1,0 +1,33 @@
+name: Build and Deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    outputs:
+      api-tag: ${{ steps.version-api.outputs.version }}
+      workers-tag: ${{steps.version-workers.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: paulhatch/semantic-version@v5.0.2
+        id: version-api
+        with:
+          # The prefix to use to identify tags
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          major_regexp_flags: ""
+          minor_pattern: "(MINOR)"
+          version_format: "${major}.${minor}.${patch}-prerelease${increment}"
+      - name: Login to DockerHub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u awebre --password-stdin
+      - name: Build and Tag Image
+        run: docker build -f ./ACADemo.API/Dockerfile . -t awebre/aca-demo:${{ steps.version-api.outputs.version }}
+      - name: Push Image
+        run: docker push awebre/aca-demo:${{ steps.version-api.outputs.version }}
